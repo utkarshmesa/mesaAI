@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeDeadline } from '../src/pipeline/deadline.js';
 import { processNote } from '../src/pipeline/processNote.js';
-import { CHAT, deadline, fakeLLM, fakeTelegram, goodPost, makeDeps, msg } from './helpers.js';
+import { CHAT, PASS_ANALYSIS, deadline, fakeLLM, fakeTelegram, fixedLLM, goodPost, makeDeps, msg } from './helpers.js';
 
 const BODY = 'A long enough note about the preservative change and the pH drift in batch fourteen';
 
@@ -14,7 +14,7 @@ describe('note pipeline §6.4', () => {
     expect(sent).toHaveLength(2);
     expect(sent[0]!.text).toBe(goodPost());
     expect(sent[0]!.replyTo).toBe(77);
-    expect(sent[1]!.text).toMatch(/^DRAFT · #[0-9a-f]{6}\n/);
+    expect(sent[1]!.text).toMatch(/^DRAFT · #[0-9a-f]{6} · Score 9\/10\n/);
     expect(sent[1]!.replyTo).toBe(sent[0]!.id);
 
     const [draft] = [...repo.drafts.values()];
@@ -79,6 +79,43 @@ describe('note pipeline §6.4', () => {
     expect(draft).toMatchObject({ status: 'superseded', decision_reason: 'send_failed' });
     expect([...repo.notes.values()][0]).toMatchObject({ status: 'failed', failed_stage: 'send' });
     expect(sent.at(-1)!.text).toBe('Something failed at send. Your note is saved.');
+  });
+
+  it('R5 short note: pre-filter rejects with no LLM call and saves rejection_message_id', async () => {
+    const { llm: analyse, calls: aCalls } = fakeLLM([]);
+    const { deps, sent, repo, calls } = makeDeps({ analyseLLM: analyse });
+    await processNote(msg({ message_id: 3, text: 'niacinamide + humidity?? come back' }), 'niacinamide + humidity?? come back', deps, deadline());
+    expect(aCalls).toHaveLength(0);
+    expect(calls).toHaveLength(0);
+    expect(sent[0]).toMatchObject({ text: 'No draft (score 0/10): Too short to develop.', replyTo: 3 });
+    expect([...repo.notes.values()][0]).toMatchObject({ status: 'rejected', score: 0, criteria: null, rejection_message_id: sent[0]!.id });
+  });
+
+  it('R5 below the gate: rejection with reason + angle, no draft', async () => {
+    const weak = { ...PASS_ANALYSIS, criteria: { specificity: 3, clear_point: 3, novelty: 0, reader_value: 2 }, reason: 'You covered this in NL-009', duplicate_of: 'NL-009', suggested_angle: 'What a checklist cannot tell you about concentration' };
+    const { deps, sent, repo, calls } = makeDeps({ analyseLLM: fixedLLM(weak) });
+    await processNote(msg({ text: BODY }), BODY, deps, deadline());
+    expect(calls).toHaveLength(0);
+    expect(repo.drafts.size).toBe(0);
+    expect(sent.map((s) => s.text)).toEqual(['No draft (score 5/10): You covered this in NL-009. Try: What a checklist cannot tell you about concentration']);
+    expect([...repo.notes.values()][0]).toMatchObject({ status: 'rejected', score: 5, flags: ['REPEAT'], duplicate_of: 'NL-009' });
+  });
+
+  it('R5 above the gate: score, reason and flags reach the card and the drafter', async () => {
+    const strong = { ...PASS_ANALYSIS, flags: ['PRIVACY'] };
+    const { llm, calls } = fakeLLM([{ post: goodPost(), news_item_used: null }]);
+    const { deps, sent } = makeDeps({ analyseLLM: fixedLLM(strong), draftLLM: llm });
+    await processNote(msg({ text: BODY }), BODY, deps, deadline());
+    expect(sent[1]!.text).toContain('Score 9/10\nWhy: First-hand batch event with a clear lesson\nFlags: PRIVACY');
+    expect(calls[0]!.user).toContain('FLAGS: PRIVACY');
+  });
+
+  it('analyse failure → note failed at "analyse"', async () => {
+    const { llm } = fakeLLM([new Error('quota')]);
+    const { deps, sent, repo } = makeDeps({ analyseLLM: llm });
+    await processNote(msg({ text: BODY }), BODY, deps, deadline());
+    expect([...repo.notes.values()][0]).toMatchObject({ status: 'failed', failed_stage: 'analyse' });
+    expect(sent[0]!.text).toBe('Something failed at analyse. Your note is saved.');
   });
 
   it('log lines never contain the note text', async () => {

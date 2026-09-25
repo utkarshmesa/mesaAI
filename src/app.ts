@@ -21,7 +21,9 @@ export function appDeps(): WebhookDeps {
     allowedChatIds: config.TELEGRAM_ALLOWED_CHAT_IDS,
     repo: makeRepo(),
     tg: telegramClient(config.TELEGRAM_BOT_TOKEN),
+    analyseLLM: geminiLLM(config.GEMINI_API_KEY, config.GEMINI_MODEL),
     draftLLM: geminiLLM(config.GEMINI_API_KEY, config.DRAFT_MODEL),
+    settings: { scoreThreshold: config.SCORE_THRESHOLD, minNoteWords: config.MIN_NOTE_WORDS },
     ctx: loadContext(),
     log,
   };

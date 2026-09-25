@@ -44,6 +44,22 @@ export function fakeLLM(responses: unknown[], model = 'fake-model') {
 
 export const CHAT = -1001;
 
+export const PASS_ANALYSIS = {
+  category: 'insight',
+  criteria: { specificity: 3, clear_point: 3, novelty: 2, reader_value: 1 },
+  reason: 'First-hand batch event with a clear lesson',
+  flags: [],
+  duplicate_of: null,
+  suggested_angle: null,
+  search_phrase: 'cosmetic preservative supplier change',
+  entities: [],
+};
+
+/** Always returns the same response. */
+export function fixedLLM(response: unknown, model = 'fixed-model'): LLM {
+  return { name: 'fixed', model, generateJSON: async (schema) => schema.parse(response) };
+}
+
 export function msg(partial: Partial<TgMessage> = {}): TgMessage {
   return { message_id: 1, chat: { id: CHAT, type: 'channel' }, ...partial };
 }
@@ -63,7 +79,9 @@ export function makeDeps(over: Partial<WebhookDeps> = {}) {
     allowedChatIds: [String(CHAT)],
     repo,
     tg,
+    analyseLLM: fixedLLM(PASS_ANALYSIS),
     draftLLM: llm,
+    settings: { scoreThreshold: 6, minNoteWords: 12 },
     ctx: loadContext(),
     log: (l) => logs.push(l),
     ...over,

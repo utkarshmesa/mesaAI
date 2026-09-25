@@ -7,8 +7,10 @@ import { type DraftInput, type DraftResult, DraftResultSchema, PROMPT_VERSION, b
 import { type Telegram, sendParts } from '../telegram.js';
 import type { Draft, LintResult, NewsItem, Note, TgMessage } from '../types.js';
 import { type Deadline, callTimeout } from './deadline.js';
-import { formatError, formatPost, formatReviewCard } from './format.js';
+import { ANALYSE_SYSTEM, AnalysisSchema, buildAnalyseUserPrompt } from '../prompts/analyse.js';
+import { formatError, formatPost, formatRejection, formatReviewCard } from './format.js';
 import { lintPost } from './lint.js';
+import { gate, preFilter, scoreAnalysis } from './score.js';
 
 export const LLM_TIMEOUT_MS = 60_000;
 const MIN_TO_START_MS = 10_000;
@@ -16,12 +18,14 @@ const MIN_TO_START_MS = 10_000;
 export interface PipelineDeps {
   repo: Repo;
   tg: Telegram;
+  analyseLLM: LLM;
   draftLLM: LLM;
   ctx: ContextBundle;
+  settings: { scoreThreshold: number; minNoteWords: number };
   log: Logger;
 }
 
-type Stage = 'received' | 'draft' | 'save' | 'send';
+type Stage = 'received' | 'analyse' | 'draft' | 'save' | 'send';
 
 class StageError extends Error {
   constructor(public stage: Stage, cause: unknown) {
@@ -52,12 +56,49 @@ export async function processNote(msg: TgMessage, body: string, deps: PipelineDe
 
 export async function runFromReceived(note: Note, deps: PipelineDeps, dl: Deadline): Promise<void> {
   try {
-    // M1 has no scoring: received → passed is a pass-through (plan A3).
-    const passed = await step('received', () => deps.repo.updateNote(note.id, { status: 'passed' }, ['received']));
+    // 2. PRE-FILTER (no LLM).
+    const pre = preFilter(note.text, deps.settings.minNoteWords);
+    if (!pre.pass) return await reject(note, { score: 0, reason: pre.reason }, deps);
+
+    // 3. ANALYSE (1 LLM call; code computes the score).
+    const scored = await step('analyse', () => analyseNote(note, deps, dl));
+    const analysed = await step('analyse', () => deps.repo.updateNote(note.id, scored, ['received']));
+    if (!analysed) return;
+
+    // 4. GATE.
+    if (gate(scored.score, deps.settings.scoreThreshold) === 'reject') return await reject(analysed, scored, deps);
+    const passed = await step('analyse', () => deps.repo.updateNote(note.id, { status: 'passed' }, ['received']));
     if (!passed) return;
+
     await draftAndDeliver(passed, [], 'none', deps, dl);
   } catch (err) {
     await failNote(note, err instanceof StageError ? err.stage : 'received', err, deps);
+  }
+}
+
+export async function analyseNote(note: Note, deps: PipelineDeps, dl: Deadline) {
+  requireTime(dl);
+  const t0 = Date.now();
+  const a = await deps.analyseLLM.generateJSON(AnalysisSchema, ANALYSE_SYSTEM, buildAnalyseUserPrompt(note.text, deps.ctx.published), {
+    timeoutMs: callTimeout(dl, LLM_TIMEOUT_MS),
+    allowRetry: dl.canRunOptional(),
+    thinkingLevel: 'low',
+  });
+  const scored = scoreAnalysis(a, new Set(deps.ctx.published.map((p) => p.id)));
+  deps.log({ note_id: note.id, stage: 'analyse', ms: Date.now() - t0, ok: true, model: deps.analyseLLM.model, score: scored.score });
+  return scored;
+}
+
+/** Rejection (pre-filter or gate): status → rejected, reply to the note, save rejection_message_id. */
+async function reject(note: Note, r: { score: number; reason: string; suggested_angle?: string | null }, deps: PipelineDeps): Promise<void> {
+  const updated = await deps.repo.updateNote(note.id, { status: 'rejected', score: r.score, reason: r.reason }, ['received']);
+  if (!updated || note.chat_id === null) return;
+  try {
+    const id = await deps.tg.sendMessage(note.chat_id, formatRejection(r.score, r.reason, r.suggested_angle ?? null), note.message_id ?? undefined);
+    await deps.repo.updateNote(note.id, { rejection_message_id: id });
+    deps.log({ note_id: note.id, stage: 'reject', ok: true, score: r.score });
+  } catch (err) {
+    deps.log({ note_id: note.id, stage: 'reject', ok: false, err: errMessage(err) });
   }
 }
 
