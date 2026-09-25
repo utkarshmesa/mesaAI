@@ -1,5 +1,5 @@
 // Builds the real dependencies once per function instance.
-import { loadConfig } from './config.js';
+import { type Config, loadConfig } from './config.js';
 import { loadContext } from './context.js';
 import { MemoryRepo, type Repo } from './db/repo.js';
 import { SupabaseRepo } from './db/supabaseRepo.js';
@@ -17,9 +17,13 @@ export function makeRepo(url: string, key: string): Repo {
 }
 
 export function appDeps(): WebhookDeps {
-  if (deps) return deps;
-  const config = loadConfig();
-  deps = {
+  deps ??= buildDeps(loadConfig());
+  return deps;
+}
+
+/** R12: the drafter model (DRAFT_MODEL) is switched independently of the analyse model (GEMINI_MODEL). */
+export function buildDeps(config: Config): WebhookDeps {
+  return {
     secret: config.TELEGRAM_WEBHOOK_SECRET,
     allowedChatIds: config.TELEGRAM_ALLOWED_CHAT_IDS,
     repo: makeRepo(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY),
@@ -31,5 +35,4 @@ export function appDeps(): WebhookDeps {
     ctx: loadContext(),
     log,
   };
-  return deps;
 }

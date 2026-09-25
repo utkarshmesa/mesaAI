@@ -75,3 +75,6 @@ Everything with PROPOSED is listed in build-plan §5, waiting for the owner.
 - **B8.** Message 1 (the post) is sent as a reply to Meera's note so she can see which note it answers. Copying the text is unaffected.
 - **B9.** The Gemini SDK field names were confirmed from the installed `@google/genai` 2.24 types: `config.systemInstruction`, `responseMimeType: 'application/json'`, `responseJsonSchema` (from `z.toJSONSchema`), `thinkingConfig.thinkingLevel`, `abortSignal`.
 - **B10.** A required LLM call does not start with < 10 s left before the deadline. That goes to the error path (PRD §6.2 "if a required step can't start").
+- **B11.** The stale sweep selects notes in `received`/`passed` older than 10 min. A separate "no draft" check isn't needed: a delivered draft moves the note to `drafted`, and a failed send moves it to `failed`.
+- **B12.** `npm run compare` defaults to `DRAFT_MODEL` vs `gemini-3.5-flash-lite` (the cheapest current stable Flash-Lite, D2). Both drafters get the same analyse output.
+- **B13.** A guard test (`NG1 the Cut`) fails the build if any LinkedIn host, API or credential string shows up in `src/`, `api/`, `scripts/` or the dependencies.
