@@ -2,6 +2,7 @@
 import { loadConfig } from './config.js';
 import { loadContext } from './context.js';
 import { MemoryRepo, type Repo } from './db/repo.js';
+import { SupabaseRepo } from './db/supabaseRepo.js';
 import { geminiLLM } from './llm/gemini.js';
 import { log } from './log.js';
 import { googleNews } from './pipeline/news.js';
@@ -10,8 +11,9 @@ import type { WebhookDeps } from './webhook.js';
 
 let deps: WebhookDeps | null = null;
 
-export function makeRepo(): Repo {
-  return new MemoryRepo();
+/** Supabase when configured (M4+), otherwise in-memory (M1–M3, tests). */
+export function makeRepo(url: string, key: string): Repo {
+  return url && key ? new SupabaseRepo(url, key) : new MemoryRepo();
 }
 
 export function appDeps(): WebhookDeps {
@@ -20,7 +22,7 @@ export function appDeps(): WebhookDeps {
   deps = {
     secret: config.TELEGRAM_WEBHOOK_SECRET,
     allowedChatIds: config.TELEGRAM_ALLOWED_CHAT_IDS,
-    repo: makeRepo(),
+    repo: makeRepo(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY),
     tg: telegramClient(config.TELEGRAM_BOT_TOKEN),
     analyseLLM: geminiLLM(config.GEMINI_API_KEY, config.GEMINI_MODEL),
     draftLLM: geminiLLM(config.GEMINI_API_KEY, config.DRAFT_MODEL),

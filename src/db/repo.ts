@@ -17,6 +17,15 @@ export interface Repo {
   updateDraft(id: string, patch: Partial<Draft>, expected?: DraftStatus[]): Promise<Draft | null>;
   /** Which bot message (in this chat) does message_id belong to? (PRD §6.3, scoped by chat: plan A4) */
   findReplyTarget(chatId: number, messageId: number): Promise<ReplyTarget | null>;
+  getDraft(id: string): Promise<Draft | null>;
+  /** Notes still in received/passed created before `before` (stale sweep, PRD §6.2). */
+  listStaleNotes(before: Date): Promise<Note[]>;
+  /** Pending drafts whose note is in this chat (fallback resolution §6.6b). */
+  pendingDrafts(chatId: number): Promise<Draft[]>;
+  /** Newest first (novelty check against recent drafts, R13). */
+  recentDrafts(limit: number): Promise<Draft[]>;
+  /** Active voice_skill row, or null → file fallback. */
+  activeVoice(): Promise<{ version: string; content: string } | null>;
 }
 
 export function blankNote(n: NewNote): Note {
@@ -112,5 +121,27 @@ export class MemoryRepo implements Repo {
       if (n.error_message_id === messageId) return { kind: 'note', note: { ...n }, via: 'error' };
     }
     return null;
+  }
+
+  async getDraft(id: string) {
+    const d = this.drafts.get(id);
+    return d ? { ...d } : null;
+  }
+
+  async listStaleNotes(before: Date) {
+    return [...this.notes.values()].filter((n) => (n.status === 'received' || n.status === 'passed') && n.created_at < before.toISOString()).map((n) => ({ ...n }));
+  }
+
+  async pendingDrafts(chatId: number) {
+    return [...this.drafts.values()].filter((d) => d.status === 'pending' && this.notes.get(d.note_id)?.chat_id === chatId).map((d) => ({ ...d }));
+  }
+
+  async recentDrafts(limit: number) {
+    return [...this.drafts.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, limit).map((d) => ({ ...d }));
+  }
+
+  voice: { version: string; content: string } | null = null;
+  async activeVoice() {
+    return this.voice;
   }
 }

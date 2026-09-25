@@ -4,7 +4,7 @@ import { handleCommand } from './commands.js';
 import { errMessage } from './log.js';
 import { type Deadline, makeDeadline } from './pipeline/deadline.js';
 import { TEXT_ONLY_REPLY } from './pipeline/format.js';
-import { type PipelineDeps, processNote } from './pipeline/processNote.js';
+import { type PipelineDeps, processNote, sweepStale } from './pipeline/processNote.js';
 import { route } from './router.js';
 import type { TgMessage, TgUpdate } from './types.js';
 
@@ -58,6 +58,7 @@ export async function handleWebhook(req: Request, deps: WebhookDeps, rt: Runtime
 }
 
 export async function handle(msg: TgMessage, deps: WebhookDeps, dl: Deadline): Promise<void> {
+  await sweepStale(deps).catch((err) => deps.log({ stage: 'sweep', ok: false, err: errMessage(err) }));
   const replyTo = msg.reply_to_message?.message_id;
   const target = replyTo ? await deps.repo.findReplyTarget(msg.chat.id, replyTo) : null;
   const r = route(msg, target);

@@ -8,7 +8,7 @@ import { type Telegram, sendParts } from '../telegram.js';
 import type { Draft, LintResult, NewsItem, Note, TgMessage } from '../types.js';
 import { type Deadline, callTimeout } from './deadline.js';
 import { ANALYSE_SYSTEM, AnalysisSchema, buildAnalyseUserPrompt } from '../prompts/analyse.js';
-import { formatError, formatPost, formatRejection, formatReviewCard } from './format.js';
+import { formatError, formatPost, formatRejection, formatReviewCard, shortId } from './format.js';
 import { lintPost } from './lint.js';
 import type { News, NewsFetch } from './news.js';
 import { gate, preFilter, scoreAnalysis } from './score.js';
@@ -84,12 +84,14 @@ export async function runFromReceived(note: Note, deps: PipelineDeps, dl: Deadli
 export async function analyseNote(note: Note, deps: PipelineDeps, dl: Deadline) {
   requireTime(dl);
   const t0 = Date.now();
-  const a = await deps.analyseLLM.generateJSON(AnalysisSchema, ANALYSE_SYSTEM, buildAnalyseUserPrompt(note.text, deps.ctx.published), {
+  // Novelty is checked against the published index and the first lines of the last 20 drafts (R13).
+  const priors = (await deps.repo.recentDrafts(20)).map((d) => ({ id: `D-${shortId(d.id)}`, first_line: d.body.split('\n')[0]!.slice(0, 200) }));
+  const a = await deps.analyseLLM.generateJSON(AnalysisSchema, ANALYSE_SYSTEM, buildAnalyseUserPrompt(note.text, deps.ctx.published, priors), {
     timeoutMs: callTimeout(dl, LLM_TIMEOUT_MS),
     allowRetry: dl.canRunOptional(),
     thinkingLevel: 'low',
   });
-  const scored = scoreAnalysis(a, new Set(deps.ctx.published.map((p) => p.id)));
+  const scored = scoreAnalysis(a, new Set([...deps.ctx.published.map((p) => p.id), ...priors.map((p) => p.id)]));
   deps.log({ note_id: note.id, stage: 'analyse', ms: Date.now() - t0, ok: true, model: deps.analyseLLM.model, score: scored.score });
   return scored;
 }
@@ -119,7 +121,8 @@ async function reject(note: Note, r: { score: number; reason: string; suggested_
 export async function draftAndDeliver(note: Note, news: NewsItem[], newsStatus: NewsFetch['status'], deps: PipelineDeps, dl: Deadline): Promise<Draft> {
   // 6 + 7. DRAFT and LINT (one regeneration on hard violations).
   const input: DraftInput = { note: note.text, flags: note.flags, suggestedAngle: note.suggested_angle, news };
-  const { result, lint } = await step('draft', () => draftWithLint(note.id, input, note.entities, deps, dl));
+  const voice = await step('draft', () => loadVoice(deps));
+  const { result, lint } = await step('draft', () => draftWithLint(note.id, input, note.entities, voice, deps, dl));
   const chosen = pickNews(result.news_item_used, news);
 
   // 8. INSERT draft (pending).
@@ -130,7 +133,7 @@ export async function draftAndDeliver(note: Note, news: NewsItem[], newsStatus: 
       news: chosen,
       news_status: chosen ? 'used' : newsStatus === 'ok' ? 'unused' : newsStatus,
       model: `${deps.draftLLM.name}:${deps.draftLLM.model}`,
-      voice_version: deps.ctx.voiceVersion,
+      voice_version: voice.version,
       prompt_version: PROMPT_VERSION,
       lint,
     }),
@@ -138,6 +141,16 @@ export async function draftAndDeliver(note: Note, news: NewsItem[], newsStatus: 
 
   // 9. SEND post, then card as a reply to it.
   return step('send', () => deliver(note, draft, lint, deps));
+}
+
+export interface Voice {
+  version: string;
+  content: string;
+}
+
+/** Active DB voice_skill row takes precedence; context/voice-skill.txt is the fallback. */
+export async function loadVoice(deps: PipelineDeps): Promise<Voice> {
+  return (await deps.repo.activeVoice()) ?? { version: deps.ctx.voiceVersion, content: deps.ctx.voiceSkill };
 }
 
 export function pickNews(i: number | null, news: NewsItem[]): NewsItem | null {
@@ -148,15 +161,16 @@ export async function draftWithLint(
   noteId: string,
   input: DraftInput,
   entities: string[],
+  voice: Voice,
   deps: PipelineDeps,
   dl: Deadline,
 ): Promise<{ result: DraftResult; lint: LintResult; regenerated: boolean }> {
-  const system = buildDraftSystemPrompt(deps.ctx.voiceSkill, deps.ctx.examples);
+  const system = buildDraftSystemPrompt(voice.content, deps.ctx.examples);
   const call = async (inp: DraftInput) => {
     requireTime(dl);
     const t0 = Date.now();
     // Debug proof that the voice reaches the model: hash of the exact system prompt sent.
-    deps.log({ note_id: noteId, stage: 'draft_call', ok: true, model: deps.draftLLM.model, system_sha256: sha256(system), voice_version: deps.ctx.voiceVersion, prompt_version: PROMPT_VERSION });
+    deps.log({ note_id: noteId, stage: 'draft_call', ok: true, model: deps.draftLLM.model, system_sha256: sha256(system), voice_version: voice.version, prompt_version: PROMPT_VERSION });
     const r = await deps.draftLLM.generateJSON(DraftResultSchema, system, buildDraftUserPrompt(inp), {
       timeoutMs: callTimeout(dl, LLM_TIMEOUT_MS),
       allowRetry: dl.canRunOptional(),
@@ -206,4 +220,13 @@ export async function failNote(note: Note, stage: string, err: unknown, deps: Pi
   } catch (e) {
     deps.log({ note_id: note.id, stage: 'error_path', ok: false, err: errMessage(e) });
   }
+}
+
+export const STALE_AFTER_MS = 10 * 60_000;
+
+/** PRD §6.2: notes stuck in received/passed for 10+ minutes were killed mid-run → failed at 'timeout'. */
+export async function sweepStale(deps: PipelineDeps, now = new Date()): Promise<number> {
+  const stale = await deps.repo.listStaleNotes(new Date(now.getTime() - STALE_AFTER_MS));
+  for (const note of stale) await failNote(note, 'timeout', new Error('stale'), deps);
+  return stale.length;
 }
