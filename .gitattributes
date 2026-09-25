@@ -1,0 +1,2 @@
+# Keep LF everywhere so the drafter system-prompt SHA-256 is identical locally and on Vercel.
+* text=auto eol=lf

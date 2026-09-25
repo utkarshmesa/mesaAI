@@ -71,3 +71,7 @@ Everything with PROPOSED is listed in build-plan §5, waiting for the owner.
 - **B4.** Banned-phrase match: case-insensitive, with "not a letter/digit" boundaries on both sides (`(?<![\p{L}\p{N}])phrase(?![\p{L}\p{N}])`, `u` flag). This makes phrases ending in `?` (e.g. `thoughts?`) match correctly, where `\b` would not.
 - **B5.** Scripts run with `tsx` and load env with Node's `--env-file=.env`. No dotenv dependency.
 - **B6.** Gemini SDK = `@google/genai`; Anthropic SDK = `@anthropic-ai/sdk`. Both sit behind `LLM.generateJSON`.
+- **B7.** A list line is a line starting with `-`, `•`, `*` or `\d+.` **followed by whitespace**, so `pH 5.5` or `-0.4 units` at the start of a line isn't a false positive.
+- **B8.** Message 1 (the post) is sent as a reply to Meera's note so she can see which note it answers. Copying the text is unaffected.
+- **B9.** The Gemini SDK field names were confirmed from the installed `@google/genai` 2.24 types: `config.systemInstruction`, `responseMimeType: 'application/json'`, `responseJsonSchema` (from `z.toJSONSchema`), `thinkingConfig.thinkingLevel`, `abortSignal`.
+- **B10.** A required LLM call does not start with < 10 s left before the deadline. That goes to the error path (PRD §6.2 "if a required step can't start").
