@@ -5,7 +5,7 @@ const base = {
   TELEGRAM_BOT_TOKEN: 't',
   TELEGRAM_ALLOWED_CHAT_IDS: ' -1001234 , 5678 ',
   TELEGRAM_WEBHOOK_SECRET: 'a'.repeat(32),
-  GEMINI_API_KEY: 'k',
+  GEMINI_API_KEY: 'k1, k2',
   GEMINI_MODEL: 'gemini-3.8-flash',
   DRAFT_MODEL: 'gemini-3.8-flash',
 };
@@ -26,5 +26,11 @@ describe('config', () => {
   });
   it('allows Supabase to be unset (memory repo)', () => {
     expect(loadConfig(base).SUPABASE_URL).toBe('');
+  });
+});
+
+describe('Gemini key list', () => {
+  it('R12 GEMINI_API_KEY accepts a comma list of fallback keys', () => {
+    expect(loadConfig(base).GEMINI_API_KEY).toEqual(['k1', 'k2']);
   });
 });

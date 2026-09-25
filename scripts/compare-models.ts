@@ -1,7 +1,7 @@
 // npm run compare -- note_01 [modelA] [modelB]
 // Same fixture note → two Gemini drafter models, side by side, with voice-lint results (R12).
 // Defaults: modelA = DRAFT_MODEL, modelB = gemini-3.5-flash-lite.
-import { loadConfig } from '../src/config.js';
+import { loadScriptConfig as loadConfig } from '../src/config.js';
 import { loadContext } from '../src/context.js';
 import { geminiLLM } from '../src/llm/gemini.js';
 import { lintPost } from '../src/pipeline/lint.js';

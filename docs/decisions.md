@@ -61,6 +61,11 @@ Each entry: date · decision · source/evidence · status. "PROPOSED" entries ar
 - Temperature (A1): Gemini 3 guidance says keep the default 1.0, so no temperature is sent. Analyse uses `thinkingLevel: low`. Calibration stability comes from `npm run eval -- --runs 3`.
 - Plan recommendations A1–A17 accepted as proposed. The owner asked for the simplest logic.
 
+### O2. Several Gemini keys, used as fallbacks (25 Sep 2026)
+- `GEMINI_API_KEY` takes a comma-separated list. Each call tries key 1 and moves to the next key only on 429 / 401 / 403 / 5xx (quota, rate limit, bad key, server error). A 400 or a timeout is not retried on another key; the PRD JSON-retry and error path still apply.
+- `loadScriptConfig` lets `npm run eval` / `compare` run with only the Gemini variables set.
+- The Supabase URL comes from the `ref` claim of the service-role key (`https://<ref>.supabase.co`). It lives only in `.env`.
+
 ## Build decisions (PRD silent → simplest consistent option)
 
 Everything with PROPOSED is listed in build-plan §5, waiting for the owner.

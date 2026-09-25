@@ -1,7 +1,7 @@
 // npm run eval [-- --runs 3] [--draft]
 // Runs every fixture through the real pre-filter + analyse call and checks it against `expect`.
 // --draft also drafts the "decision: draft" fixtures and requires zero hard lint violations.
-import { loadConfig } from '../src/config.js';
+import { loadScriptConfig as loadConfig } from '../src/config.js';
 import { loadContext } from '../src/context.js';
 import { geminiLLM } from '../src/llm/gemini.js';
 import { lintPost } from '../src/pipeline/lint.js';
