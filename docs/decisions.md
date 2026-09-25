@@ -83,3 +83,8 @@ Everything with PROPOSED is listed in build-plan §5, waiting for the owner.
 - **B11.** The stale sweep selects notes in `received`/`passed` older than 10 min. A separate "no draft" check isn't needed: a delivered draft moves the note to `drafted`, and a failed send moves it to `failed`.
 - **B12.** `npm run compare` defaults to `DRAFT_MODEL` vs `gemini-3.5-flash-lite` (the cheapest current stable Flash-Lite, D2). Both drafters get the same analyse output.
 - **B13.** A guard test (`NG1 the Cut`) fails the build if any LinkedIn host, API or credential string shows up in `src/`, `api/`, `scripts/` or the dependencies.
+
+## Calibration (25 Sep 2026)
+
+- **C1.** First live eval (3 runs): note_04 was rated `fragment` (capped at 2, needs ≥ 5). analyse-1.0.1 narrows "fragment" to scraps too thin to state a point, and says to rate the idea, not the polish. Result: all expectations met in 3/3 runs; gate pass rate 2/8 fixtures (not too lenient).
+- **C2.** The drafts added details the note never stated ("delayed our restock and added real expense", named test parameters). draft-1.0.1 lists what counts as an invented fact. Re-read note_01 after the change: no invented events. note_01/note_02: zero hard lint in 6/6 drafts. Drafter system prompt SHA-256 (file voice 1.0.0): `f41f2d2244b9…`.

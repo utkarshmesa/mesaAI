@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import type { PublishedItem } from '../context.js';
 
-export const PROMPT_VERSION = 'analyse-1.0.0';
+export const PROMPT_VERSION = 'analyse-1.0.1';
 
 export const AnalysisSchema = z.object({
   category: z.enum(['insight', 'logistics', 'venting', 'fragment']),
@@ -37,7 +37,9 @@ ${RUBRIC}
 
 Compare it against the published index. A note repeats a published item only if it has the same core claim AND the same anecdote. The same broad topic is not a repeat. Whenever novelty is 0 or 1, set duplicate_of to the id of the published item with the same core claim; otherwise set duplicate_of to null.
 
-Categorise it as insight | logistics | venting | fragment. Reminders, to-dos and admin are logistics. Complaints about her day with no lesson are venting. Unfinished half-thoughts are fragment.
+Categorise it as insight | logistics | venting | fragment. Reminders, to-dos and admin are logistics. Complaints about her day with no lesson are venting. Fragment is only a scrap too thin to state any point (a few words, a topic to come back to). A note that explains a mechanism, a distinction or an event is insight, even when it is informal, rambling or stops mid-thought.
+
+Rate the idea, not the polish: notes are raw voice-memo style. Informal or unfinished phrasing does not lower specificity or clear_point when a mechanism and a point can be stated from the note.
 
 If novelty ≤ 1 or the note is weak, suggest one concrete new angle she hasn't published (suggested_angle, ≤ 25 words); otherwise null.
 

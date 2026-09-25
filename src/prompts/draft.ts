@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { Flag, NewsItem } from '../types.js';
 
-export const PROMPT_VERSION = 'draft-1.0.0';
+export const PROMPT_VERSION = 'draft-1.0.1';
 
 export const DraftResultSchema = z.object({
   post: z.string().min(1),
@@ -13,7 +13,7 @@ export type DraftResult = z.infer<typeof DraftResultSchema>;
 
 const RULES = `RULES FOR THIS TASK
 1. Write one LinkedIn post from Meera's note. Keep her point. Don't invent a different one.
-2. Use only facts from the note or the chosen news item. For any missing fact write [CHECK: what's needed].
+2. Use only facts from the note or the chosen news item. For any missing fact write [CHECK: what's needed]. Do not add events, consequences, costs, delays, dates, numbers, test names or process steps that the note does not state; explaining general science is fine, inventing what happened at Skinstinct is not.
 3. News: use at most one item, and only if it is directly relevant to the note's point. Otherwise set news_item_used to null. Never let the news become the main subject. You only have the headline, source and date. Any claim about the article beyond what the headline says must be written as [CHECK: …].
 4. Flags: LEGAL → name no third party and imply no intent. PRIVACY → anonymise fully. MEDICAL → no diagnosis or treatment advice; suggest seeing a dermatologist where a condition is involved. REPEAT → take the suggested angle, not the published one.
 5. Length: 2,200–2,900 characters. Hard cap 3,000.
