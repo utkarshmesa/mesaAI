@@ -1,0 +1,30 @@
+{
+  "name": "meera-linkedin-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "eval": "tsx --env-file=.env scripts/eval.ts",
+    "compare": "tsx --env-file=.env scripts/compare-models.ts",
+    "webhook:set": "tsx --env-file=.env scripts/set-webhook.ts",
+    "voice:seed": "tsx --env-file=.env scripts/seed-voice.ts"
+  },
+  "dependencies": {
+    "@google/genai": "^2.24.0",
+    "@supabase/supabase-js": "^2.117.2",
+    "@vercel/functions": "^3.9.9",
+    "fast-xml-parser": "^5.11.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}
