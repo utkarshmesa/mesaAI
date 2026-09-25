@@ -4,6 +4,7 @@ import { loadContext } from './context.js';
 import { MemoryRepo, type Repo } from './db/repo.js';
 import { geminiLLM } from './llm/gemini.js';
 import { log } from './log.js';
+import { googleNews } from './pipeline/news.js';
 import { telegramClient } from './telegram.js';
 import type { WebhookDeps } from './webhook.js';
 
@@ -23,6 +24,7 @@ export function appDeps(): WebhookDeps {
     tg: telegramClient(config.TELEGRAM_BOT_TOKEN),
     analyseLLM: geminiLLM(config.GEMINI_API_KEY, config.GEMINI_MODEL),
     draftLLM: geminiLLM(config.GEMINI_API_KEY, config.DRAFT_MODEL),
+    news: googleNews({ window: config.NEWS_WINDOW, locale: config.NEWS_LOCALE, forceError: config.NEWS_FORCE_ERROR === '1' }),
     settings: { scoreThreshold: config.SCORE_THRESHOLD, minNoteWords: config.MIN_NOTE_WORDS },
     ctx: loadContext(),
     log,

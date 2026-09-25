@@ -118,6 +118,44 @@ describe('note pipeline §6.4', () => {
     expect(sent[0]!.text).toBe('Something failed at analyse. Your note is saved.');
   });
 
+  const ITEMS = [
+    { headline: 'Regulator tightens preservative disclosure', source: 'Mint', date: '20 Sep 2026', url: 'https://news.google.com/a' },
+    { headline: 'Other story', source: 'ET', date: '19 Sep 2026', url: 'https://news.google.com/b' },
+  ];
+
+  it('R6 news items go to the drafter; R7 a used item puts the verify block on the card', async () => {
+    const { llm, calls } = fakeLLM([{ post: goodPost(), news_item_used: 1 }]);
+    const { deps, sent, repo } = makeDeps({ draftLLM: llm, news: { fetch: async () => ({ items: ITEMS, status: 'ok' }) } });
+    await processNote(msg({ text: BODY }), BODY, deps, deadline());
+    expect(calls[0]!.user).toContain('"headline":"Regulator tightens preservative disclosure"');
+    expect(calls[0]!.user).not.toContain('news.google.com'); // the drafter never sees URLs
+    expect(sent[1]!.text).toContain('NEWS SOURCE: Regulator tightens preservative disclosure\nFROM: Mint · 20 Sep 2026\nLINK: https://news.google.com/a\n⚠ Check this before publishing');
+    expect([...repo.drafts.values()][0]).toMatchObject({ news: ITEMS[0], news_status: 'used' });
+  });
+
+  it('R7 news offered but not used → no verify block, news_status unused', async () => {
+    const { llm } = fakeLLM([{ post: goodPost(), news_item_used: null }]);
+    const { deps, sent, repo } = makeDeps({ draftLLM: llm, news: { fetch: async () => ({ items: ITEMS, status: 'ok' }) } });
+    await processNote(msg({ text: BODY }), BODY, deps, deadline());
+    expect(sent[1]!.text).not.toContain('NEWS SOURCE');
+    expect([...repo.drafts.values()][0]).toMatchObject({ news: null, news_status: 'unused' });
+  });
+
+  it('R6 out-of-range news_item_used is treated as null', async () => {
+    const { llm } = fakeLLM([{ post: goodPost(), news_item_used: 7 }]);
+    const { deps, repo } = makeDeps({ draftLLM: llm, news: { fetch: async () => ({ items: ITEMS, status: 'ok' }) } });
+    await processNote(msg({ text: BODY }), BODY, deps, deadline());
+    expect([...repo.drafts.values()][0]!.news).toBeNull();
+  });
+
+  it('R6 RSS unreachable → the draft is still delivered with news_status error', async () => {
+    const { llm } = fakeLLM([{ post: goodPost(), news_item_used: null }]);
+    const { deps, sent, repo } = makeDeps({ draftLLM: llm, news: { fetch: async () => { throw new Error('down'); } } });
+    await processNote(msg({ text: BODY }), BODY, deps, deadline());
+    expect(sent).toHaveLength(2);
+    expect([...repo.drafts.values()][0]).toMatchObject({ status: 'pending', news_status: 'error' });
+  });
+
   it('log lines never contain the note text', async () => {
     const { llm } = fakeLLM([{ post: goodPost(), news_item_used: null }]);
     const { deps, logs } = makeDeps({ draftLLM: llm });

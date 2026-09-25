@@ -10,6 +10,7 @@ import { type Deadline, callTimeout } from './deadline.js';
 import { ANALYSE_SYSTEM, AnalysisSchema, buildAnalyseUserPrompt } from '../prompts/analyse.js';
 import { formatError, formatPost, formatRejection, formatReviewCard } from './format.js';
 import { lintPost } from './lint.js';
+import type { News, NewsFetch } from './news.js';
 import { gate, preFilter, scoreAnalysis } from './score.js';
 
 export const LLM_TIMEOUT_MS = 60_000;
@@ -20,6 +21,7 @@ export interface PipelineDeps {
   tg: Telegram;
   analyseLLM: LLM;
   draftLLM: LLM;
+  news: News;
   ctx: ContextBundle;
   settings: { scoreThreshold: number; minNoteWords: number };
   log: Logger;
@@ -70,7 +72,10 @@ export async function runFromReceived(note: Note, deps: PipelineDeps, dl: Deadli
     const passed = await step('analyse', () => deps.repo.updateNote(note.id, { status: 'passed' }, ['received']));
     if (!passed) return;
 
-    await draftAndDeliver(passed, [], 'none', deps, dl);
+    // 5. NEWS (no LLM; failure never blocks drafting).
+    const news = await fetchNews(passed, deps);
+
+    await draftAndDeliver(passed, news.items, news.status, deps, dl);
   } catch (err) {
     await failNote(note, err instanceof StageError ? err.stage : 'received', err, deps);
   }
@@ -89,6 +94,14 @@ export async function analyseNote(note: Note, deps: PipelineDeps, dl: Deadline) 
   return scored;
 }
 
+export async function fetchNews(note: Note, deps: PipelineDeps): Promise<NewsFetch> {
+  if (!note.search_phrase) return { items: [], status: 'none' };
+  const t0 = Date.now();
+  const r = await deps.news.fetch(note.search_phrase).catch((): NewsFetch => ({ items: [], status: 'error' }));
+  deps.log({ note_id: note.id, stage: 'news', ms: Date.now() - t0, ok: r.status !== 'error', status: r.status, count: r.items.length });
+  return r;
+}
+
 /** Rejection (pre-filter or gate): status → rejected, reply to the note, save rejection_message_id. */
 async function reject(note: Note, r: { score: number; reason: string; suggested_angle?: string | null }, deps: PipelineDeps): Promise<void> {
   const updated = await deps.repo.updateNote(note.id, { status: 'rejected', score: r.score, reason: r.reason }, ['received']);
@@ -103,9 +116,7 @@ async function reject(note: Note, r: { score: number; reason: string; suggested_
 }
 
 /** Steps 6–9 for a note that is `passed`. */
-export type FetchStatus = 'ok' | 'none' | 'error';
-
-export async function draftAndDeliver(note: Note, news: NewsItem[], newsStatus: FetchStatus, deps: PipelineDeps, dl: Deadline): Promise<Draft> {
+export async function draftAndDeliver(note: Note, news: NewsItem[], newsStatus: NewsFetch['status'], deps: PipelineDeps, dl: Deadline): Promise<Draft> {
   // 6 + 7. DRAFT and LINT (one regeneration on hard violations).
   const input: DraftInput = { note: note.text, flags: note.flags, suggestedAngle: note.suggested_angle, news };
   const { result, lint } = await step('draft', () => draftWithLint(note.id, input, note.entities, deps, dl));

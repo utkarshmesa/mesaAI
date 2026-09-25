@@ -81,6 +81,7 @@ export function makeDeps(over: Partial<WebhookDeps> = {}) {
     tg,
     analyseLLM: fixedLLM(PASS_ANALYSIS),
     draftLLM: llm,
+    news: { fetch: async () => ({ items: [], status: 'none' as const }) },
     settings: { scoreThreshold: 6, minNoteWords: 12 },
     ctx: loadContext(),
     log: (l) => logs.push(l),
