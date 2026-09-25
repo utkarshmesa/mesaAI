@@ -13,7 +13,7 @@ Source of truth: [PRD.md](PRD.md). Rules for contributors: [CLAUDE.md](CLAUDE.md
 5. `cp .env.example .env` and fill it in. Generate the webhook secret with `openssl rand -hex 24`.
 6. `npm run typecheck && npm test`, then `npm run eval -- --runs 3 --draft` (live Gemini calls; must end with ✅).
 7. `npm run voice:seed` stores `context/voice-skill.txt` as the active voice version.
-8. Push to GitHub, import the repo in Vercel, and add every variable from `.env` under Project → Settings → Environment Variables. Deploy.
+8. Push to GitHub, import the repo in Vercel, and add every variable from `.env` under Project → Settings → Environment Variables. Every push to `main` then redeploys automatically.
 9. `npm run webhook:set -- https://<your-app>.vercel.app/api/webhook` prints `getWebhookInfo`; it must show your URL and no `last_error_message`.
 10. Post a note in the channel. The draft and its review card arrive within a minute.
 

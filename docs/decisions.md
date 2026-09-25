@@ -92,4 +92,4 @@ Everything with PROPOSED is listed in build-plan §5, waiting for the owner.
 ## Deployment (25 Sep 2026)
 
 - **E1.** Supabase: `001_init.sql` + `metrics.sql` were run in the SQL editor; `npm run voice:seed` → voice_skill 1.0.0 active.
-- **E2.** Vercel project `meera-linkedin-bot`, deployed with the Vercel CLI from the local checkout. The browser pane couldn't finish the Vercel↔GitHub link, so pushes to GitHub **do not auto-deploy** yet; redeploy with `npx vercel deploy --prod`. `.vercelignore` keeps `.env` out of the upload. Webhook URL: `https://meera-linkedin-bot-rho.vercel.app/api/webhook`. (`meera-linkedin-bot.vercel.app` is a different, unrelated project.)
+- **E2.** Vercel project `meera-linkedin-bot`, deployed with the Vercel CLI from the local checkout. The browser pane couldn't finish the Vercel↔GitHub link, then connected to `utkarshmesa/mesaAI`: **every push to `main` auto-deploys to production** (verified 25 Sep 2026). `.vercelignore` keeps `.env` out of the upload. Webhook URL: `https://meera-linkedin-bot-rho.vercel.app/api/webhook`. (`meera-linkedin-bot.vercel.app` is a different, unrelated project.)
