@@ -93,3 +93,14 @@ Everything with PROPOSED is listed in build-plan §5, waiting for the owner.
 
 - **E1.** Supabase: `001_init.sql` + `metrics.sql` were run in the SQL editor; `npm run voice:seed` → voice_skill 1.0.0 active.
 - **E2.** Vercel project `meera-linkedin-bot`, deployed with the Vercel CLI from the local checkout. The browser pane couldn't finish the Vercel↔GitHub link, then connected to `utkarshmesa/mesaAI`: **every push to `main` auto-deploys to production** (verified 25 Sep 2026). `.vercelignore` keeps `.env` out of the upload. Webhook URL: `https://meera-linkedin-bot-rho.vercel.app/api/webhook`. (`meera-linkedin-bot.vercel.app` is a different, unrelated project.)
+
+## Voice skill v2.2.1 (26 Sep 2026)
+
+- **V1.** `context/voice-skill.txt` replaced with **v2.2.1** (the owner calls it "v3.0"; see `docs/voice-v3-report.md`). The previous versions are kept in `context/archive/` (v1.0.0 was live until now; v1.2 comes from the voice research).
+- **V2.** Only the voice skill was adopted. Not built yet (all from PRD v1.4 in the owner's snapshot): drafter-prompt-v2 with `plan`, FOUNDER FACTS, the 4th example post, the extra lint rules and banned phrases, the fact audit (R23), and the 3-candidate → editor → critic pipeline. The drafter rules now say explicitly that no FOUNDER FACTS block is supplied.
+- **V3.** Draft rules aligned with v2.2.1 (draft-1.1.1). Missing facts: write around the gap first, and use [CHECK] only when needed. LEGAL: no speculation about intent in either direction. Length: **code** picks the band from the analyse score (≥ 8 or unscored → 2,200–2,800 "rich"; otherwise 1,600–2,100 "thin"). Without that band the model wrote 1,395–1,936 chars for 10/10 notes.
+- **V4.** New hard lint rule: < 600 chars = "Incomplete" (a live run once returned a 159-char, one-sentence "draft"). It triggers the existing single regeneration.
+- **V5.** analyse-1.0.2: MEDICAL explicitly covers skin-barrier damage and genetic skin conditions (note_04 dropped the flag in 1 of 3 runs).
+- **V6.** Key fallback also moves on for dropped connections (`fetch failed`, e.g. ECONNRESET). Timeouts still don't.
+- **Result:** `npm run eval -- --runs 3 --draft` meets all expectations in 3/3 runs, gate 2/8. note_01/note_02: 6/6 drafts at 2,356–2,839 chars, 0 hard and 0 soft lint. System prompt SHA-256 `e72a0de35e7d…`.
+- **Known gap:** longer drafts still sometimes add small unstated details ("passed microbiological testing", "the same bottle from the same batch"). The fix the research recommends is the fact audit (R23), not more prompt rules.

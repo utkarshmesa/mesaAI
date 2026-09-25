@@ -3,6 +3,8 @@ import type { LintResult } from '../types.js';
 
 export const HARD_MAX_CHARS = 3000;
 export const SOFT_MIN_CHARS = 1800;
+/** Below this the model returned a fragment, not a post (seen live: a 159-char 'draft'). */
+export const HARD_MIN_CHARS = 600;
 
 /** Length in Unicode code points, which is what LinkedIn counts (decisions B1). */
 export function charCount(s: string): number {
@@ -34,6 +36,7 @@ export function lintPost(post: string, { banned, entities }: LintOptions): LintR
   const len = charCount(post);
 
   if (len > HARD_MAX_CHARS) hard.push(`Length ${len} > ${HARD_MAX_CHARS} chars`);
+  if (len < HARD_MIN_CHARS) hard.push(`Incomplete: ${len} chars`);
   if (/\p{Extended_Pictographic}/u.test(post)) hard.push('Contains an emoji');
   if (/(^|\s)#\w/u.test(post)) hard.push('Contains a hashtag');
   if (post.includes('!')) hard.push('Contains "!"');

@@ -120,7 +120,7 @@ async function reject(note: Note, r: { score: number; reason: string; suggested_
 /** Steps 6–9 for a note that is `passed`. */
 export async function draftAndDeliver(note: Note, news: NewsItem[], newsStatus: NewsFetch['status'], deps: PipelineDeps, dl: Deadline): Promise<Draft> {
   // 6 + 7. DRAFT and LINT (one regeneration on hard violations).
-  const input: DraftInput = { note: note.text, flags: note.flags, suggestedAngle: note.suggested_angle, news };
+  const input: DraftInput = { note: note.text, score: note.score, flags: note.flags, suggestedAngle: note.suggested_angle, news };
   const voice = await step('draft', () => loadVoice(deps));
   const { result, lint } = await step('draft', () => draftWithLint(note.id, input, note.entities, voice, deps, dl));
   const chosen = pickNews(result.news_item_used, news);

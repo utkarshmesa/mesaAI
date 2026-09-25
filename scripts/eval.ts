@@ -73,7 +73,7 @@ for (let run = 1; run <= runs; run++) {
 
     if (withDraft && e.decision === 'draft' && row.decision === 'draft') {
       const system = buildDraftSystemPrompt(ctx.voiceSkill, ctx.examples);
-      const input: DraftInput = { note: f.text, flags: row.flags as Flag[], suggestedAngle: row.suggested_angle, news: [] };
+      const input: DraftInput = { note: f.text, score: row.score, flags: row.flags as Flag[], suggestedAngle: row.suggested_angle, news: [] };
       let d = await drafter.generateJSON(DraftResultSchema, system, buildDraftUserPrompt(input), { timeoutMs: LLM_TIMEOUT_MS, allowRetry: true });
       let lint = lintPost(d.post, { banned: ctx.banned, entities: row.entities });
       if (lint.hard.length) {

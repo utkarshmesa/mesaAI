@@ -31,7 +31,7 @@ const analysis = await geminiLLM(config.GEMINI_API_KEY, config.GEMINI_MODEL).gen
 );
 const s = scoreAnalysis(analysis, new Set(ctx.published.map((p) => p.id)));
 const system = buildDraftSystemPrompt(ctx.voiceSkill, ctx.examples);
-const user = buildDraftUserPrompt({ note: fixture.text, flags: s.flags, suggestedAngle: s.suggested_angle, news: [] });
+const user = buildDraftUserPrompt({ note: fixture.text, score: s.score, flags: s.flags, suggestedAngle: s.suggested_angle, news: [] });
 console.log(`${id} · score ${s.score}/10 · flags [${s.flags.join(', ')}] · system_sha256 ${sha256(system).slice(0, 12)}\n`);
 
 for (const model of models) {

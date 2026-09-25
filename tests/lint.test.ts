@@ -14,6 +14,9 @@ describe('voice lint §7.3', () => {
   it('R11 length over 3,000 chars is hard', () => {
     expect(lint('a'.repeat(3001)).hard.join()).toMatch(/Length 3001/);
   });
+  it('R11 a fragment under 600 chars is hard (broken output → regenerate)', () => {
+    expect(lint('A customer messaged me today.').hard).toContain('Incomplete: 29 chars');
+  });
   it('R11 emoji, hashtag and "!" are hard', () => {
     expect(lint(goodPost(' ✨')).hard).toContain('Contains an emoji');
     expect(lint(goodPost(' #skincare')).hard).toContain('Contains a hashtag');
@@ -36,7 +39,7 @@ describe('voice lint §7.3', () => {
     expect(r.hard).toContain('Names "Acme Chemicals"');
   });
   it('R11 soft: > 2 question marks, > 3 em dashes, < 1,800 chars', () => {
-    const r = lint('Why? How? When? — — — — short');
+    const r = lint('Why? How? When? — — — — short', opts);
     expect(r.soft).toEqual(['3 question marks', '4 em dashes', `Short: ${charCount('Why? How? When? — — — — short')} chars`]);
   });
   it('R14 counts [CHECK: …] placeholders', () => {

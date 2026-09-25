@@ -21,7 +21,7 @@ describe('note pipeline §6.4', () => {
     const [draft] = [...repo.drafts.values()];
     const [note] = [...repo.notes.values()];
     expect(note!.status).toBe('drafted');
-    expect(draft).toMatchObject({ status: 'pending', post_message_id: sent[0]!.id, card_message_id: sent[1]!.id, voice_version: '1.0.0', prompt_version: PROMPT_VERSION, news_status: 'none' });
+    expect(draft).toMatchObject({ status: 'pending', post_message_id: sent[0]!.id, card_message_id: sent[1]!.id, voice_version: deps.ctx.voiceVersion, prompt_version: PROMPT_VERSION, news_status: 'none' });
     expect(logs.some((l) => l.stage === 'draft_call' && /^[0-9a-f]{64}$/.test(String(l.system_sha256)))).toBe(true);
   });
 

@@ -21,6 +21,9 @@ describe('Gemini key fallback', () => {
     expect(seen).toEqual(['a']);
     expect(shouldTryNextKey(new Error('aborted'))).toBe(false);
   });
+  it('R12 a dropped connection (fetch failed) tries the next key', () => {
+    expect(shouldTryNextKey(new TypeError('fetch failed'))).toBe(true);
+  });
   it('R12 throws the last error when every key fails', async () => {
     await expect(withKeyFallback(['a', 'b'], async () => { throw apiErr(429); })).rejects.toThrow('status 429');
   });

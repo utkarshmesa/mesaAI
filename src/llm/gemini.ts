@@ -4,8 +4,9 @@ import { type GenerateOptions, type LLM, withJsonRetry } from './index.js';
 
 const LEVELS = { low: ThinkingLevel.LOW, medium: ThinkingLevel.MEDIUM, high: ThinkingLevel.HIGH } as const;
 
-/** Rate limit, quota, bad/blocked key or a server error: worth trying the next key. */
+/** Rate limit, quota, bad/blocked key, server error or a dropped connection: worth trying the next key. */
 export function shouldTryNextKey(err: unknown): boolean {
+  if (err instanceof TypeError && err.message === 'fetch failed') return true; // e.g. ECONNRESET; timeouts are AbortErrors and are not retried
   const status = (err as { status?: unknown })?.status;
   return typeof status === 'number' && (status === 429 || status === 401 || status === 403 || status >= 500);
 }

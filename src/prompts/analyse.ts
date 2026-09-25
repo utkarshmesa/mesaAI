@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import type { PublishedItem } from '../context.js';
 
-export const PROMPT_VERSION = 'analyse-1.0.1';
+export const PROMPT_VERSION = 'analyse-1.0.2';
 
 export const AnalysisSchema = z.object({
   category: z.enum(['insight', 'logistics', 'venting', 'fragment']),
@@ -46,7 +46,7 @@ If novelty ≤ 1 or the note is weak, suggest one concrete new angle she hasn't 
 Flags (include every one that applies):
 - LEGAL: the note describes a third party (supplier, manufacturer, brand) falling short, whether or not it's named.
 - PRIVACY: the note concerns a specific real customer or person's situation, even if unnamed.
-- MEDICAL: the note involves a skin condition, symptom or treatment.
+- MEDICAL: the note involves a skin condition, symptom or treatment, including skin-barrier damage and genetic skin conditions.
 - REPEAT: include when duplicate_of is set.
 
 reason: ≤ 20 words, written to Meera in the second person, plain and direct.

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { Flag, NewsItem } from '../types.js';
 
-export const PROMPT_VERSION = 'draft-1.0.1';
+export const PROMPT_VERSION = 'draft-1.1.1';
 
 export const DraftResultSchema = z.object({
   post: z.string().min(1),
@@ -13,10 +13,10 @@ export type DraftResult = z.infer<typeof DraftResultSchema>;
 
 const RULES = `RULES FOR THIS TASK
 1. Write one LinkedIn post from Meera's note. Keep her point. Don't invent a different one.
-2. Use only facts from the note or the chosen news item. For any missing fact write [CHECK: what's needed]. Do not add events, consequences, costs, delays, dates, numbers, test names or process steps that the note does not state; explaining general science is fine, inventing what happened at Skinstinct is not.
+2. Use only facts from the note or the chosen news item. No FOUNDER FACTS or PUBLISHED FIGURES block is supplied in this version, so the note and the news item are the only sources. Do not add events, consequences, costs, delays, dates, numbers, test names or process steps that the note does not state; explaining general science is fine, inventing what happened at Skinstinct is not. Follow the voice skill's [CHECK] policy: write around a gap first, and use [CHECK: question for Meera] only when the point depends on it.
 3. News: use at most one item, and only if it is directly relevant to the note's point. Otherwise set news_item_used to null. Never let the news become the main subject. You only have the headline, source and date. Any claim about the article beyond what the headline says must be written as [CHECK: …].
-4. Flags: LEGAL → name no third party and imply no intent. PRIVACY → anonymise fully. MEDICAL → no diagnosis or treatment advice; suggest seeing a dermatologist where a condition is involved. REPEAT → take the suggested angle, not the published one.
-5. Length: 2,200–2,900 characters. Hard cap 3,000.
+4. Flags: LEGAL → name no third party, and don't speculate about intent in either direction (no accusation, no unprompted absolution). PRIVACY → anonymise fully. MEDICAL → no diagnosis or treatment advice; suggest seeing a dermatologist where a condition is involved. REPEAT → take the suggested angle, not the published one.
+5. Length: use the TARGET LENGTH in the message (code sets it from the note's score, following the voice skill's rich/thin bands). Reach it with mechanism, never padding. Hard cap 3,000 characters.
 6. If REDO feedback is present, apply it and keep everything else that worked.
 
 Return JSON only: {"post": string, "news_item_used": number | null}. "post" is plain text with paragraphs separated by a blank line. "news_item_used" is the "i" of the news item you used, or null.`;
@@ -31,8 +31,14 @@ export function sha256(s: string): string {
   return createHash('sha256').update(s, 'utf8').digest('hex');
 }
 
+/** Voice skill v2.2.1 bands: a rich note (analyse score ≥ 8, or unscored) gets 2,200–2,800; a thin one 1,600–2,100. */
+export function lengthBand(score: number | null): string {
+  return score === null || score >= 8 ? '2,200-2,800 characters (rich note)' : '1,600-2,100 characters (thin note)';
+}
+
 export interface DraftInput {
   note: string;
+  score?: number | null;
   flags: Flag[];
   suggestedAngle: string | null;
   news: NewsItem[];
@@ -44,6 +50,7 @@ export interface DraftInput {
 export function buildDraftUserPrompt(d: DraftInput): string {
   const parts = [`NOTE FROM MEERA:\n${d.note}`];
   parts.push(`FLAGS: ${d.flags.length ? d.flags.join(', ') : 'none'}`);
+  parts.push(`TARGET LENGTH: ${lengthBand(d.score ?? null)}`);
   if (d.suggestedAngle) parts.push(`SUGGESTED ANGLE: ${d.suggestedAngle}`);
   const news = d.news.map((n, i) => ({ i: i + 1, headline: n.headline, source: n.source, date: n.date }));
   parts.push(`NEWS ITEMS: ${news.length ? JSON.stringify(news) : 'none (set news_item_used to null)'}`);
